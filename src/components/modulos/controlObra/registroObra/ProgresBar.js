@@ -1,0 +1,159 @@
+
+import { useState, useContext, useEffect } from 'react';
+import Stepper from '@material-ui/core/Stepper';
+import Step from '@material-ui/core/Step';
+import StepLabel from '@material-ui/core/StepLabel';
+import Button from '@material-ui/core/Button';
+import Typography from '@material-ui/core/Typography';
+import Copyright from '../../../layout/Copyright';
+
+// se importan los estilos
+import { styleProgressBar } from '../../../../styles/bi/stylesBi'
+
+// se importan los componentes
+import CargaFactura from './CargaFactura'
+import NuevaObra from './NuevaObra';
+import Resumen from './Resumen';
+
+// se importan los context
+import registroObraContext from '../../../../context/controlObra/registroObra/registroObraContext'
+import alertaContext from '../../../../context/alertas/alertaContext'
+import modalContext from '../../../../context/modal/modalContext'
+import obrasContext from '../../../../context/obras/obrasContext'
+
+
+
+// se crean los encabezados del progress bar
+function getSteps() {
+  return ['Nueva obra', 'Cargar cotización', 'Revision de datos'];
+}
+
+
+
+export default function HorizontalLabelPositionBelowStepper() {
+  const classes = styleProgressBar();
+
+  //state para manejar en que paso va
+  const [activeStep, setActiveStep] = useState(0);
+  const steps = getSteps();
+
+  // se extrae la informacion del context
+  const registroObrasContext = useContext(registroObraContext)
+  const { 
+    nombreObra,
+    montoTotal,
+    numeroContrato,
+    partidas,
+    cambiarEstado,
+    submitObra,
+    items_no_found
+  } = registroObrasContext
+
+  // Extraer los valores del context de alerta
+  const alertasContext = useContext(alertaContext)
+  const { mostrarAlerta } = alertasContext
+
+  const modalsContext = useContext(modalContext)
+  const { peticion, estadoModal, cancelarPeticion } = modalsContext
+
+  const obrassContext = useContext(obrasContext)
+  const { cargarObras } = obrassContext
+
+  useEffect(() => {
+    if(peticion){
+        submitObra()
+        
+        setActiveStep(0);
+        cancelarPeticion()
+    }
+  }, [peticion])
+
+  useEffect(() => {
+    if(nombreObra === ''){
+      cargarObras()
+    }
+  }, [nombreObra])
+
+
+  const handleNext = () => {
+    if (activeStep === 0 && (nombreObra.trim() === '' || montoTotal.trim() === '' || numeroContrato.trim() === '')){
+      mostrarAlerta('Debe de ingresar todos los campos', 'alerta alerta-error')
+      return
+    }
+    if (activeStep === 1 && partidas.length === 0 ){
+      mostrarAlerta('Debe ingresar un archivo csv con la estructura correcta', 'alerta alerta-error')
+      return
+    }
+    if(activeStep === 0){
+      cambiarEstado(true)
+    }
+    
+    if(activeStep === 2){
+      estadoModal(true)
+      return
+    }
+    setActiveStep((prevActiveStep) => prevActiveStep + 1);
+  };
+
+  const handleBack = () => {
+    if(activeStep === 1){
+      cambiarEstado(false)
+    }
+    setActiveStep((prevActiveStep) => prevActiveStep - 1);
+  };
+
+  const handleReset = () => {
+    setActiveStep(0);
+  };
+  
+  const getStepContent = (stepIndex) => {
+    switch (stepIndex) {
+      case 0:
+        return <NuevaObra estado={false}/>;
+      case 1:
+        return <CargaFactura estado={false}/>;
+      case 2:
+        return <Resumen/>;
+      default:
+        return 'guardado';
+    }
+  }
+
+  return (
+    <div className={classes.root}>
+      <Stepper activeStep={activeStep} alternativeLabel>
+        {steps.map((label) => (
+          <Step key={label}>
+            <StepLabel>{label}</StepLabel>
+          </Step>
+        ))}
+      </Stepper>
+      <div>
+        {activeStep === steps.length ? (
+          <div>
+            <Typography className={classes.instructions}>Todos los pasos completados</Typography>
+            <Button onClick={handleReset}>Volver al inicio</Button>
+          </div>
+        ) : (
+          <div>
+            <Typography className={classes.instructions}>{getStepContent(activeStep)}</Typography>
+            <div>
+              <Button
+                disabled={activeStep === 0}
+                onClick={handleBack}
+                className={classes.backButton}
+              >
+                Atras
+              </Button>
+              <Button variant="contained" color="primary" onClick={handleNext}>
+                {activeStep === steps.length - 1 ? 'Finalizar' : 'Siguiente'}
+              </Button>
+            </div>
+          </div>
+        )}
+      </div>
+      <Copyright/>
+    </div>
+    
+  );
+}
